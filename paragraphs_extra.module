@@ -21,15 +21,6 @@ function paragraphs_extra_theme() {
  */
 function paragraphs_extra_library() {
   $libraries = array();
-  $libraries['paragraphs.collapse'] = array(
-    'title' => 'Paragraphs collapse',
-    'version' => '0.1',
-    'js' => array(
-      drupal_get_path('module', 'paragraphs_extra') . '/js/paragraphs.collapse.js' => array(),
-    ),
-    'css' => array(
-    ),
-  );
   $libraries['paragraphs.summary'] = array(
     'title' => 'Paragraphs summary',
     'version' => '0.1',
@@ -42,15 +33,13 @@ function paragraphs_extra_library() {
   return $libraries;
 }
 
-
 /**
  * Implements hook_field_widget_form_alter().
  */
 function paragraphs_extra_field_widget_form_alter(&$element, &$form_state, $context) {
-
   // Add additional libraries and rendering to the paragraphs_embed widget.
   if ($context['instance']['widget']['type'] == 'paragraphs_embed') {
-    $element['#attached']['library'][] = array('paragraphs_extra', 'paragraphs.collapse');
+    $element['#attached']['library'][] = array('system', 'drupal.collapse');
     $element['#attached']['library'][] = array('paragraphs_extra', 'paragraphs.summary');
 
     foreach (element_children($element) as $key) {
@@ -67,15 +56,14 @@ function paragraphs_extra_field_widget_form_alter(&$element, &$form_state, $cont
  */
 function theme_paragraphs_widget_item($vars) {
   $element =& $vars['element'];
-  $title = '';
   $body = '';
 
   // Grab the title and the rest as body from the nested elements.
+  $paragraph_bundle = paragraphs_bundle_load($element['#bundle']);
+  $title = "{$paragraph_bundle->name}";
+
   foreach (element_children($element) as $key) {
-    if ($key == 'title') {
-      $title .= drupal_render($element[$key]);
-    }
-    else {
+    if ($key !== 'title') {
       $body .= drupal_render($element[$key]);
     }
   }
@@ -84,22 +72,31 @@ function theme_paragraphs_widget_item($vars) {
     'class' => array(
       'paragraphs-widget-item',
       'delta-' . $element['#delta'],
+      'collapsible',
+      'collapsed',
     ),
   );
+
+  $ptitle = '';
   if (!isset($element['#entity']->item_id)) {
     $item_attributes['class'] = 'is-new';
-    $item_attributes['data-paragraph-item-closed'] = 0;
   }
   else {
-    $item_attributes['data-paragraph-item-closed'] = 1;
+    if (isset($element['#entity']->field_title)) {
+      $paragraph_title = field_get_items('paragraphs_item', $element['#entity'], 'field_title');
+      $ptitle = "{$paragraph_title[0]['value']} - ";
+    }
   }
+  $output = '
+  <fieldset'. drupal_attributes($item_attributes) . '>
+    <legend class="paragraphs-widget-item-title">
+      <span class="fieldset-legend">' . $ptitle . $title . '</span>
+    </legend>
+    <div class="fieldset-wrapper">
+      <div class="paragraphs-widget-item-summary"></div>
+      <div class="paragraphs-widget-item-body">' . $body . '</div>
+    </div>
+  </fieldset>';
 
-  $output = '<div'. drupal_attributes($item_attributes) . '>';
-  $output .= '<div class="paragraphs-widget-item-title">' . $title . '</div>';
-  $output .= '<div class="paragraphs-widget-item-summary"></div>';
-  $output .= '<div class="paragraphs-widget-item-body">' . $body . '</div>';
-  $output .= '</div>';
   return $output;
 }
-
-
